@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gujarati Spell Checker | ગુજરાતી જોડણી તપાસક</title>
+  <meta name="description" content="Gujarati Spell Checker using N-gram Statistical Language Model and Levenshtein Distance.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Gujarati:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <h1 class="header-title">Gujarati spell checker</h1>
+      <p class="header-subtitle">Gujarati Spell Checker using N-Gram Language Model &amp; Levenshtein Distance</p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-card">
+      {% if not model_ready %}
+        <div class="alert alert-danger" id="model-warning">
+          <strong>⚠ Notice:</strong> Trained model not found. Please execute <code>python train_ngram.py</code> in the terminal first.
+        </div>
+      {% endif %}
+
+      <!-- Input Form -->
+      <section class="input-section">
+        <label for="text-input" class="input-label">
+          Enter Gujarati word or sentence:
+        </label>
+        <div class="input-wrapper">
+          <textarea
+            id="text-input"
+            rows="3"
+            placeholder="દા.ત. શાલામાં અથવા હું શાળામાં જાઉં છું."
+            aria-label="Gujarati text input"
+          ></textarea>
+        </div>
+
+        <!-- Action Buttons with Smooth Spring Animations -->
+        <div class="actions-row">
+          <button id="check-btn" class="btn btn-primary" {% if not model_ready %}disabled{% endif %}>
+            <span id="btn-text">Check Spelling</span>
+            <span id="btn-spinner" class="spinner" style="display: none;"></span>
+          </button>
+          <button id="clear-btn" class="btn btn-secondary" type="button">Clear</button>
+        </div>
+      </section>
+
+      <!-- Feedback / Result Section -->
+      <section id="result-section" class="result-section" style="display: none;">
+        <!-- Verdict Banner -->
+        <div id="verdict-banner" class="verdict-banner">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Correction Summary Box -->
+        <div class="correction-summary" id="correction-summary">
+          <div class="summary-grid">
+            <div class="summary-col">
+              <span class="col-label">ENTERED TEXT</span>
+              <p class="col-val text-entered" id="summary-entered"></p>
+            </div>
+            <div class="summary-arrow" id="summary-arrow">→</div>
+            <div class="summary-col">
+              <div class="summary-col-header">
+                <span class="col-label">SUGGESTED RESULT</span>
+                <button type="button" class="copy-btn" id="copy-result-btn" title="Copy suggested result">
+                  <svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span class="copy-text">Copy</span>
+                </button>
+              </div>
+              <p class="col-val text-corrected" id="summary-corrected"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Google Keyboard Style Suggestions Bar -->
+        <div id="suggestions-box" class="suggestions-box" style="display: none;">
+          <div class="suggestions-header">
+            <span class="suggestions-title">Suggestions</span>
+            <span class="suggestions-hint">Click any suggestion to replace</span>
+          </div>
+          <div id="suggestions-bar" class="suggestions-bar">
+            <!-- Suggestion chips with exact distance tooltips preserved -->
+          </div>
+        </div>
+
+        <!-- Word by Word Analysis -->
+        <div class="words-breakdown">
+          <h2 class="subheading">TOKEN ANALYSIS</h2>
+          <div id="tokens-list" class="tokens-list"></div>
+        </div>
+
+        <!-- Processing Details Toggle -->
+        <div class="details-toggle-container">
+          <button id="toggle-details-btn" class="btn btn-outline" type="button">
+            <span class="toggle-icon">▼</span>
+            <span class="toggle-text">View Complete Processing Pipeline</span>
+          </button>
+        </div>
+
+        <!-- Processing Details Collapsible Body with Smooth Slide Animation -->
+        <div id="processing-details-panel" class="processing-details-panel">
+          <div class="pipeline-header">
+            <h3>Visible NLP Processing Pipeline</h3>
+            <p>Every step of token processing is computed in real time without black-box models.</p>
+          </div>
+
+          <div class="pipeline-steps">
+            <!-- Step 1 -->
+            <div class="step-card">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h4>Unicode Normalization</h4>
+                <p class="step-desc">Normalizes text into canonical Unicode NFC form (NFC).</p>
+                <div class="step-output" id="pipe-unicode"></div>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="step-card">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h4>Whitespace Normalization</h4>
+                <p class="step-desc">Collapses repeated spaces, tabs, and newlines into single spaces.</p>
+                <div class="step-output" id="pipe-whitespace"></div>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="step-card">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h4>Punctuation Handling</h4>
+                <p class="step-desc">Separates and cleans standard and Indic punctuation (।, ॥, ., ?, etc.).</p>
+                <div class="step-output" id="pipe-punctuation"></div>
+              </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="step-card">
+              <div class="step-num">4</div>
+              <div class="step-content">
+                <h4>Tokenization</h4>
+                <p class="step-desc">Splits preprocessed text into distinct Gujarati word tokens.</p>
+                <div class="step-output" id="pipe-tokens"></div>
+              </div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="step-card">
+              <div class="step-num">5</div>
+              <div class="step-content">
+                <h4>Stopword Handling</h4>
+                <div class="stopword-notice">
+                  <span class="badge badge-info">Stopword Removal: DISABLED</span>
+                  <p class="stopword-rationale">
+                    Stopwords are deliberately retained. In N-gram language modeling, common grammatical particles
+                    (હું, છે, અને, માં) provide essential transition context between adjacent words.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 6 -->
+            <div class="step-card">
+              <div class="step-num">6</div>
+              <div class="step-content">
+                <h4>Vocabulary Verification</h4>
+                <p class="step-desc">Each token is verified against the training corpus vocabulary.</p>
+                <div class="table-responsive">
+                  <table class="pipeline-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Token</th>
+                        <th>In Vocabulary</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="pipe-vocab-table"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 7 -->
+            <div class="step-card">
+              <div class="step-num">7</div>
+              <div class="step-content">
+                <h4>Candidate Generation &amp; Levenshtein Distance</h4>
+                <p class="step-desc">
+                  For misspelled words, candidates are generated from vocabulary with edit distance &le; 1, &le; 2, or &le; 3.
+                </p>
+                <div id="pipe-candidates-container"></div>
+              </div>
+            </div>
+
+            <!-- Step 8 -->
+            <div class="step-card">
+              <div class="step-num">8</div>
+              <div class="step-content">
+                <h4>N-Gram Context &amp; Final Ranking</h4>
+                <p class="step-desc">
+                  Candidates are evaluated using Trigram, Bigram, and Unigram transition probabilities from
+                  the statistical model. Lower edit distance is prioritized, then contextual probability.
+                </p>
+                <div id="pipe-ngram-container"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>

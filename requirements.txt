@@ -1,0 +1,6 @@
+# Production runtime dependencies
+Flask>=2.3.0
+
+# Development and testing:
+# Uses standard library modules (unittest, csv, json, re, unicodedata, pathlib)
+# No additional external packages required.
